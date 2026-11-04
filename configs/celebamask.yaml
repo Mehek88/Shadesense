@@ -1,0 +1,14 @@
+# Segmentation quality (module 2): compare a backend's masks with CelebAMask-HQ ground truth.
+#   python scripts/prepare_celebamask.py --n 2000
+#   python -m shadesense pipeline --config configs/celebamask.yaml --set segment.backend=landmarks
+#   python -m shadesense pipeline --config configs/celebamask.yaml --set segment.backend=parser
+# -> results/celebamask/segmentation.csv (mIoU for skin and lips)
+# Caveat: the SegFormer parser was trained on CelebAMask-HQ, so its score here is optimistic.
+# Also check it on the MT makeup dataset or hand-labelled team selfies.
+defaults: ../config.yaml
+
+dataset:
+  name: celebamask
+  images_dir: data/raw/celebamask
+  masks_dir: data/raw/celebamask_masks
+  test_fraction: 0.3

@@ -1,0 +1,77 @@
+# One config drives every stage. Override any key from the CLI: --set match.k=5
+seed: 0
+
+paths:
+  data: data
+  manifests: data/manifests
+  store: data/store
+  results: results
+  models: models            # downloaded model files (MediaPipe face landmarker)
+
+dataset:
+  name: team_selfies
+  # Folder layout: <images_dir>/<identity>/<condition>.jpg  (e.g. alice/neutral.jpg, alice/warm_lamp.jpg)
+  # For public datasets without identities, use one folder per image or set identity_from: filename.
+  images_dir: data/raw/team_selfies
+  masks_dir: null           # optional ground-truth masks: <masks_dir>/<identity>/<condition>_{skin,lips}.png
+  reference_condition: neutral   # the image treated as "true colour" for each identity
+  mst_labels: null          # optional CSV: image_id,mst  (Monk Skin Tone 1-10, hand-labelled)
+  undertone_labels: null    # optional CSV: image_id,undertone  (warm / cool / neutral)
+  test_fraction: 0.3        # split BY IDENTITY: one person never in both train and test
+  image_size: 512
+
+ingest:
+  min_side: 128             # reject tiny images
+  min_blur_var: 40.0        # variance of the Laplacian below this = too blurry
+  max_clip_fraction: 0.25   # more than this share of pixels at 0 or 255 = bad exposure
+  require_face: true
+
+segment:
+  backend: landmarks        # landmarks (MediaPipe, baseline) | parser (SegFormer face parser, proposed) | oracle (ground-truth masks)
+  landmarker_url: https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+  parser_hf_id: jonathandinu/face-parsing   # SegFormer trained on CelebAMask-HQ (19 classes)
+  erode_px: 3               # shrink skin mask away from hair, brows and edges
+
+lighting:
+  # Light colour is estimated from pixels around (not on) the face. Pick the method with the team selfies:
+  # `evaluate` reports "raw" (no correction) next to the corrected baseline.
+  method: shades_of_gray    # none | gray_world | shades_of_gray
+  p_norm: 6                 # shades_of_gray exponent (1 = gray-world; higher leans on the brightest pixels)
+  max_gain: 1.25            # cap per-channel correction; coloured scenes otherwise get over-corrected
+
+features:
+  trim_percentiles: [10, 90]   # ignore shadows and highlights when taking the median skin colour
+  dino_hf_id: facebook/dinov2-small
+  dino_size: 224
+  ridge_alpha: 1.0          # DINOv2 -> LAB regression head (the proposed colour estimator)
+
+catalogue:
+  csv: data/raw/makeup_shades/shades.csv    # columns detected automatically: brand, product/name, hex
+  demo_csv: data/demo/demo_catalogue.csv     # generated synthetic catalogue for tests / smoke run
+
+match:
+  k: 3                      # foundation shades returned
+  candidates: 50            # FAISS (Euclidean LAB) shortlist, re-ranked by Delta E 2000
+
+undertone:
+  # Hue angle h = atan2(b*, a*) in degrees. More yellow (higher h) = warm, more pink (lower h) = cool.
+  cool_below: 55.0
+  warm_above: 65.0
+
+tryon:
+  strength: 0.75            # 0 = no change, 1 = full lipstick colour
+  feather_px: 3
+
+evaluate:
+  relight:                  # synthetic lighting changes applied to reference images
+    warm_lamp:  {gains: [1.15, 1.0, 0.80], brightness: 1.0}
+    cool_led:   {gains: [0.85, 1.0, 1.15], brightness: 1.0}
+    dim:        {gains: [1.0, 1.0, 1.0],  brightness: 0.6}
+    bright:     {gains: [1.0, 1.0, 1.0],  brightness: 1.35}
+    green_cast: {gains: [0.92, 1.08, 0.92], brightness: 1.0}
+  corruptions:
+    jpeg30: {kind: jpeg, quality: 30}
+    blur:   {kind: blur, sigma: 2.0}
+  mst_groups: {light: [1, 3], medium: [4, 7], deep: [8, 10]}
+  bootstrap: 1000
+  latency_images: 30

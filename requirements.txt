@@ -1,0 +1,19 @@
+numpy
+pandas
+pyarrow
+scipy
+scikit-image          # CIELAB conversion, Delta E 2000
+scikit-learn
+faiss-cpu
+pillow
+pyyaml
+joblib
+matplotlib
+torch                 # DINOv2 and the SegFormer face parser
+transformers
+mediapipe             # face landmarks (baseline segmentation); needs Python 3.9-3.12
+streamlit             # demo
+fastapi               # web API (optional)
+uvicorn
+python-multipart      # file uploads in FastAPI
+pytest

@@ -1,0 +1,26 @@
+# Laptop smoke test: synthetic cartoon faces with known skin colour and masks, a synthetic shade
+# catalogue, and oracle segmentation. No dataset downloads; DINOv2-small (~90 MB) downloads once.
+defaults: ../config.yaml
+
+dataset:
+  name: synthetic
+  images_dir: data/raw/synthetic
+  masks_dir: data/raw/synthetic_masks
+  reference_condition: neutral
+  mst_labels: data/raw/synthetic_labels.csv
+  undertone_labels: data/raw/synthetic_labels.csv
+  test_fraction: 0.3
+  image_size: 256
+
+ingest:
+  min_blur_var: 5.0
+
+segment:
+  backend: oracle
+
+catalogue:
+  csv: data/demo/demo_catalogue.csv
+
+evaluate:
+  bootstrap: 200
+  latency_images: 10

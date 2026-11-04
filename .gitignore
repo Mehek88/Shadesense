@@ -1,0 +1,10 @@
+data/
+results/
+models/
+tryon.png
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+.DS_Store
+video-embeddings/
