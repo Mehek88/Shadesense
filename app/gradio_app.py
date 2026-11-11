@@ -17,7 +17,7 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from shadesense.config import load_config  # noqa: E402
+from shadesense.config import load_config, paths  # noqa: E402
 from shadesense.pipeline import ShadeSense  # noqa: E402
 
 CFG = load_config(os.environ.get("SHADESENSE_CONFIG", "config.yaml"))
@@ -30,10 +30,10 @@ def pipeline(method: str) -> ShadeSense:
 
 
 def _get(method: str) -> tuple[ShadeSense, str]:
-    try:
-        return pipeline(method), ""
-    except FileNotFoundError:
+    # check before building: loading DINOv2 only to find no trained head would cost seconds on every click
+    if method == "proposed" and not paths(CFG)["head"].exists():
         return pipeline("baseline"), "The DINOv2 method has no trained colour head here yet, so the baseline was used. "
+    return pipeline(method), ""
 
 
 def _prep(img: np.ndarray) -> np.ndarray:
