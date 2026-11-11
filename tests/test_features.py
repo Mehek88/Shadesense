@@ -8,12 +8,19 @@ from shadesense.segment import OracleSegmenter
 
 
 def test_skin_lab_recovers_true_colour(synth):
+    """Photos have a random camera cast and exposure; after white-card calibration the median skin LAB
+    must be close to the colour the face was drawn with."""
+    from shadesense.evaluate import calibrated_lab
+
     root, labels = synth
     seg = OracleSegmenter(root / "masks")
-    for row in labels.itertuples():
+    cfg = {"evaluate": {"card_white": 0.8}, "features": {"trim_percentiles": [10, 90]}}
+    for row in labels[labels.image_id.str.endswith("/neutral")].itertuples():
         rgb = load_image(root / "faces" / f"{row.image_id}.png")
-        lab = skin_lab(rgb, seg.load(row.image_id).skin)
-        assert delta_e(lab, hex_to_lab(row.true_hex)) < 6   # side shading + noise, so not exact
+        masks = seg.load(row.image_id)
+        lab, _ = calibrated_lab(rgb, masks, cfg)
+        assert delta_e(lab, hex_to_lab(row.true_hex)) < 4      # side shading + noise, so not exact
+        assert skin_lab(rgb, masks.skin).shape == (3,)
 
 
 def test_skin_crop_shape(synth):

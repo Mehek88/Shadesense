@@ -7,11 +7,23 @@ import pandas as pd
 from .colour import delta_e, hex_to_lab
 from .store import build_catalogue_index
 
-# Illustrative lipstick families per undertone (generic colour names, not products).
+# 21 lipstick colours in three families. Undertone picks the family; skin depth picks shades within it.
+# Rule of thumb from colour analysis: warm undertones suit yellow/orange-based reds and nudes,
+# cool undertones blue-based reds, berries and pinks, neutral undertones sit in between.
+# Generic colour names, not products: swap in real products (same hex format) if the team wants.
 LIPSTICKS = {
-    "warm": [("brick red", "#a4322b"), ("terracotta nude", "#b5654a"), ("coral", "#e0614f"), ("orange red", "#c83a24")],
-    "cool": [("blue red", "#a1192f"), ("berry", "#8a2c4b"), ("mauve", "#a3687a"), ("fuchsia", "#c2347a")],
-    "neutral": [("rosy nude", "#b8746e"), ("classic red", "#b0222e"), ("dusty rose", "#b26f78"), ("soft plum", "#7e3b4f")],
+    "warm": [
+        ("peach nude", "#d08a6e"), ("coral", "#e0614f"), ("terracotta nude", "#b5654a"), ("orange red", "#c83a24"),
+        ("burnt orange", "#b4482a"), ("brick red", "#a4322b"), ("warm caramel", "#a8664a"), ("rust brown", "#7f3522"),
+    ],
+    "cool": [
+        ("cool pink", "#d4708f"), ("fuchsia", "#c2347a"), ("mauve", "#a3687a"), ("blue red", "#a1192f"),
+        ("berry", "#8a2c4b"), ("plum", "#6b2140"), ("wine", "#5e1a2c"),
+    ],
+    "neutral": [
+        ("rosy nude", "#b8746e"), ("dusty rose", "#b26f78"), ("classic red", "#b0222e"), ("rosewood", "#9a4e4e"),
+        ("soft plum", "#7e3b4f"), ("deep cherry", "#7a1f2b"),
+    ],
 }
 
 
@@ -39,12 +51,13 @@ class ShadeMatcher:
         return self._ranked(lab, k)[0].tolist()
 
 
-def lipsticks_for(undertone: str, skin_lab, n: int = 2) -> list[dict]:
-    """Pick the family for the undertone; prefer shades with clear but not extreme contrast to the skin."""
+def lipsticks_for(undertone: str, skin_lab, n: int = 3) -> list[dict]:
+    """Pick the family for the undertone, then the shades whose depth suits the skin: about 25 L* units
+    deeper than the skin, so light skin gets lighter shades and deep skin gets deeper, richer ones."""
     fam = LIPSTICKS.get(undertone, LIPSTICKS["neutral"])
     target_L = float(skin_lab[0]) - 25          # a bit deeper than the skin
     scored = sorted(fam, key=lambda x: abs(hex_to_lab(x[1])[0] - target_L))
-    return [{"name": name, "hex": h} for name, h in scored[:n]]
+    return [{"name": name, "hex": h, "family": undertone if undertone in LIPSTICKS else "neutral"} for name, h in scored[:n]]
 
 
 def confidence(skin_pixels: int, best_delta_e: float) -> float:

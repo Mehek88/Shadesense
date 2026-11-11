@@ -13,6 +13,7 @@ torch                 # DINOv2 and the SegFormer face parser
 transformers
 mediapipe             # face landmarks (baseline segmentation); needs Python 3.9-3.12
 streamlit             # demo
+gradio                # demo for Hugging Face Spaces
 fastapi               # web API (optional)
 uvicorn
 python-multipart      # file uploads in FastAPI

@@ -1,0 +1,14 @@
+# Fairness check on MST-E (python scripts/prepare_mst_e.py first). No white-card reference photos, so
+# shade accuracy is skipped; summary.json reports Monk Skin Tone prediction accuracy per method.
+defaults: ../config.yaml
+models_from: team_selfies   # test the DINOv2 colour head trained on the team selfies (if it exists)
+
+dataset:
+  name: mst_e
+  images_dir: data/raw/mst_e
+  reference_condition: none
+  mst_labels: data/raw/mst_e_labels.csv
+  test_fraction: 1.0          # nothing is trained on MST-E: every subject is test data
+
+ingest:
+  require_face: true

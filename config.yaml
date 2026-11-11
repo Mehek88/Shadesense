@@ -10,11 +10,14 @@ paths:
 
 dataset:
   name: team_selfies
-  # Folder layout: <images_dir>/<identity>/<condition>.jpg  (e.g. alice/neutral.jpg, alice/warm_lamp.jpg)
+  # Folder layout: <images_dir>/<identity>/<condition>.jpg  (e.g. p01/reference.jpg, p01/warm_lamp.jpg)
+  # Collection protocol: docs/data_collection.md
   # For public datasets without identities, use one folder per image or set identity_from: filename.
   images_dir: data/raw/team_selfies
   masks_dir: null           # optional ground-truth masks: <masks_dir>/<identity>/<condition>_{skin,lips}.png
-  reference_condition: neutral   # the image treated as "true colour" for each identity
+  reference_condition: reference # daylight photo with a white card beside the face: the "true colour" photo
+  card_boxes: null          # optional CSV image_id,x0,y0,x1,y1 (fractions 0-1) if the card is not found automatically
+  foundation_labels: null   # optional CSV identity,foundation_brand,foundation_shade (docs/templates/people.csv works)
   mst_labels: null          # optional CSV: image_id,mst  (Monk Skin Tone 1-10, hand-labelled)
   undertone_labels: null    # optional CSV: image_id,undertone  (warm / cool / neutral)
   test_fraction: 0.3        # split BY IDENTITY: one person never in both train and test
@@ -63,6 +66,10 @@ tryon:
   feather_px: 3
 
 evaluate:
+  truth: card               # card: white-card calibrated reference photo (not circular) | raw: uncalibrated reference
+  card_white: 0.8           # linear brightness the white card is scaled to
+  relight_condition: daylight   # photo that gets the synthetic lighting changes below (no card in it)
+  failures: 8               # worst cases per method shown in results/<ds>/failures.png
   relight:                  # synthetic lighting changes applied to reference images
     warm_lamp:  {gains: [1.15, 1.0, 0.80], brightness: 1.0}
     cool_led:   {gains: [0.85, 1.0, 1.15], brightness: 1.0}

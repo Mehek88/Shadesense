@@ -15,6 +15,7 @@ from scipy import ndimage
 
 from .colour import MST_HEX, hex_to_rgb, lab_to_hex, lab_to_rgb, mst_from_lab, rgb_to_lab, undertone_rule
 from .config import paths
+from .lighting import relight
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 
@@ -132,8 +133,20 @@ def _ellipse(h, w, cy, cx, ry, rx):
     return ((yy - cy) / ry) ** 2 + ((xx - cx) / rx) ** 2 <= 1
 
 
+# Photos per synthetic person: (condition, mean light gains, exposure range, white card in shot?)
+SYNTH_CONDITIONS = [
+    ("neutral", (1.0, 1.0, 1.0), (0.85, 1.0), True),       # reference: daylight + white card, mild camera cast
+    ("daylight", (1.0, 1.0, 1.0), (0.85, 1.0), False),
+    ("warm_lamp", (1.12, 1.0, 0.82), (0.7, 0.95), False),
+    ("cool_led", (0.88, 1.0, 1.12), (0.8, 1.0), False),
+]
+
+
 def make_synthetic(out_dir: str | Path, masks_dir: str | Path, n_identities: int = 40, size: int = 256, seed: int = 0) -> pd.DataFrame:
-    """Cartoon faces with known skin colour and masks, one per identity, spread across all 10 MST tones.
+    """Cartoon faces with known skin colour and masks, spread across all 10 MST tones.
+
+    Each person gets the photos in SYNTH_CONDITIONS: a reference photo with a white card next to the
+    face and a slightly wrong camera white balance, plus photos under other lights without the card.
 
     Lets the whole pipeline (oracle segmentation, lighting, features, matching, evaluation) run on a
     laptop with no downloads. It is a plumbing test, not evidence about real faces.
@@ -162,14 +175,23 @@ def make_synthetic(out_dir: str | Path, masks_dir: str | Path, n_identities: int
         img[lips] = lip_rgb + rng.normal(0, 4, (lips.sum(), 3))
         skin_mask = face & ~ndimage.binary_dilation(eyes | brows | lips, iterations=3)
 
+        card = np.zeros((h, w), bool)
+        card[int(h * 0.40):int(h * 0.62), int(w * 0.01):int(w * 0.085)] = True   # beside the face, outside it
+
         ident = f"person{i:03d}"
         (out_dir / ident).mkdir(parents=True, exist_ok=True)
         (masks_dir / ident).mkdir(parents=True, exist_ok=True)
-        Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(out_dir / ident / "neutral.png")
-        Image.fromarray(skin_mask.astype(np.uint8) * 255).save(masks_dir / ident / "neutral_skin.png")
-        Image.fromarray(lips.astype(np.uint8) * 255).save(masks_dir / ident / "neutral_lips.png")
-        rows.append({"image_id": f"{ident}/neutral", "mst": mst_from_lab(skin_lab),
-                     "undertone": undertone_rule(skin_lab), "true_hex": lab_to_hex(skin_lab)})
+        for cond, gains, (e_lo, e_hi), with_card in SYNTH_CONDITIONS:
+            scene = img.copy()
+            if with_card:
+                scene[card] = 231.0 + rng.normal(0, 1.0, (card.sum(), 3))    # sRGB 231 = linear 0.8, white paper
+            g = np.asarray(gains) * (1 + rng.normal(0, 0.04, 3))
+            photo = relight(np.clip(scene, 0, 255).astype(np.uint8), g, rng.uniform(e_lo, e_hi))
+            Image.fromarray(photo).save(out_dir / ident / f"{cond}.png")
+            Image.fromarray(skin_mask.astype(np.uint8) * 255).save(masks_dir / ident / f"{cond}_skin.png")
+            Image.fromarray(lips.astype(np.uint8) * 255).save(masks_dir / ident / f"{cond}_lips.png")
+            rows.append({"image_id": f"{ident}/{cond}", "mst": mst_from_lab(skin_lab),
+                         "undertone": undertone_rule(skin_lab), "true_hex": lab_to_hex(skin_lab)})
     labels = pd.DataFrame(rows)
     labels.to_csv(out_dir.parent / f"{out_dir.name}_labels.csv", index=False)
     return labels

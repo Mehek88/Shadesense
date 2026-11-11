@@ -22,5 +22,6 @@ catalogue:
   csv: data/demo/demo_catalogue.csv
 
 evaluate:
+  relight_condition: daylight
   bootstrap: 200
   latency_images: 10

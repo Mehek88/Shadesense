@@ -7,7 +7,8 @@ from shadesense.ingest import assert_identity_disjoint, quality, scan, split_by_
 def test_scan_and_split(synth):
     root, labels = synth
     df = scan(root / "faces", "neutral")
-    assert len(df) == 6 and df.is_reference.all()
+    assert df.identity.nunique() == 6 and len(df) == 24          # 4 photos per person
+    assert (df.groupby("identity").is_reference.sum() == 1).all() and set(df[df.is_reference].condition) == {"neutral"}
     df = split_by_identity(df, 0.3, seed=0)
     assert set(df.split) == {"train", "test"}
     assert_identity_disjoint(df)
