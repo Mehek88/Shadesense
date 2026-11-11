@@ -10,7 +10,7 @@ import pyarrow.parquet as pq
 
 from .colour import hex_to_lab
 
-VECTOR_COLS = ("lab_raw", "lab_corr", "dino")
+VECTOR_COLS = ("lab_raw", "lab_corr", "lab_ref", "dino")
 
 
 def write_features(path: str | Path, df: pd.DataFrame) -> None:

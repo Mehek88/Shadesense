@@ -48,13 +48,14 @@ def seed_everything(seed: int) -> None:
 def paths(cfg: dict) -> dict[str, Path]:
     p = cfg["paths"]
     name = cfg["dataset"]["name"]
+    models_from = cfg.get("models_from") or name     # reuse heads trained on another dataset (e.g. team selfies)
     return {
         "manifest": Path(p["manifests"]) / f"{name}.parquet",
         "rejections": Path(p["manifests"]) / f"{name}_rejections.csv",
         "quality": Path(p["manifests"]) / f"{name}_quality.json",
         "features": Path(p["store"]) / name / "features.parquet",
-        "head": Path(p["store"]) / name / "colour_head.joblib",
-        "undertone_clf": Path(p["store"]) / name / "undertone_clf.joblib",
+        "head": Path(p["store"]) / models_from / "colour_head.joblib",
+        "undertone_clf": Path(p["store"]) / models_from / "undertone_clf.joblib",
         "catalogue_index": Path(p["store"]) / "catalogue.faiss",
         "results": Path(p["results"]) / name,
         "models": Path(p["models"]),

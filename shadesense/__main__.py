@@ -5,7 +5,9 @@
   python -m shadesense extract     segment + features for every image      (modules 2-5)
   python -m shadesense train       fit DINOv2 -> LAB head, undertone classifier
   python -m shadesense evaluate    all metrics, baseline vs proposed       (module 8)
-  python -m shadesense pipeline    ingest -> extract -> train -> evaluate
+  python -m shadesense check-cards preview the white card found in each reference photo
+  python -m shadesense report      failure cases + real-foundation check (after evaluate)
+  python -m shadesense pipeline    ingest -> extract -> train -> evaluate -> report
   python -m shadesense analyze --image selfie.jpg [--method proposed] [--out tryon.png]
 """
 from __future__ import annotations
@@ -19,7 +21,7 @@ from .config import load_config
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="shadesense")
-    ap.add_argument("command", choices=["make-demo", "ingest", "extract", "train", "evaluate", "pipeline", "analyze"])
+    ap.add_argument("command", choices=["make-demo", "ingest", "check-cards", "extract", "train", "evaluate", "report", "pipeline", "analyze"])
     ap.add_argument("--config", default="config.yaml")
     ap.add_argument("--set", nargs="*", default=[], metavar="KEY=VALUE")
     ap.add_argument("--no-dino", action="store_true", help="baseline only: skip DINOv2 features")
@@ -54,6 +56,14 @@ def main(argv=None):
         from .evaluate import evaluate
 
         evaluate(cfg, latency=not a.no_latency)
+    if a.command in ("report", "pipeline"):
+        from .report import report
+
+        report(cfg)
+    if a.command == "check-cards":
+        from .report import check_cards
+
+        check_cards(cfg)
     if a.command == "analyze":
         from PIL import Image
 

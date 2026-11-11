@@ -74,3 +74,49 @@ def corrupt(rgb: np.ndarray, spec: dict) -> np.ndarray:
     if kind == "blur":
         return np.asarray(img.filter(ImageFilter.GaussianBlur(spec.get("sigma", 2.0))))
     raise ValueError(f"unknown corruption {kind!r}")
+
+
+# --------------------------------------------------------------------------- white-card calibration
+def find_card(rgb: np.ndarray, background: np.ndarray, min_area: float = 0.002, top_fraction: float = 0.10,
+              box: tuple[float, float, float, float] | None = None) -> np.ndarray | None:
+    """Mask of the white card / paper held next to the face in a reference photo.
+
+    `box` (x0, y0, x1, y1 as fractions of width/height) gives the card position by hand. Otherwise the card
+    is the largest connected bright region outside the face: among the brightest `top_fraction` of background
+    pixels (and at least 25% brighter than the background median), ignoring clipped ones. Returns None when nothing large enough is found.
+    """
+    from scipy import ndimage
+
+    h, w = rgb.shape[:2]
+    if box is not None:
+        x0, y0, x1, y1 = box
+        m = np.zeros((h, w), bool)
+        m[int(y0 * h):int(y1 * h), int(x0 * w):int(x1 * w)] = True
+        m &= rgb.max(-1) < 250
+    else:
+        lum = _srgb_to_linear(_as_float(rgb)) @ np.array([0.2126, 0.7152, 0.0722])
+        cand = background & (rgb.max(-1) < 250)
+        if cand.sum() < min_area * h * w:
+            return None
+        # bright AND clearly brighter than the typical background (a plain wall is otherwise all "top 10%")
+        thr = max(np.quantile(lum[cand], 1 - top_fraction), 1.25 * np.median(lum[cand]))
+        lab, n = ndimage.label(cand & (lum > thr))
+        if n == 0:
+            return None
+        sizes = ndimage.sum(np.ones_like(lum), lab, index=np.arange(1, n + 1))
+        m = lab == (np.argmax(sizes) + 1)
+        m = ndimage.binary_erosion(m, iterations=2) if m.sum() > 200 else m
+    return m if m.sum() >= min_area * h * w else None
+
+
+def card_calibrate(rgb: np.ndarray, card: np.ndarray, white: float = 0.8, fix_brightness: bool = True) -> np.ndarray:
+    """Rescale linear RGB so the card becomes neutral white (`white` = its linear value under daylight).
+
+    The card has a known colour, so this removes both the light colour and the camera's white balance /
+    exposure. That makes the reference colour independent of the methods being tested (no circular
+    ground truth). With fix_brightness=False only the colour cast is removed and exposure is kept.
+    """
+    lin = _srgb_to_linear(_as_float(rgb))
+    c = np.median(lin[card], axis=0) + 1e-6
+    gains = (white / c) if fix_brightness else (c.mean() / c)
+    return _to_uint8(_linear_to_srgb(lin * gains))

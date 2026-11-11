@@ -5,6 +5,14 @@
 """
 from __future__ import annotations
 
+import os
+import sys
+
+# macOS: faiss-cpu and torch wheels each bundle their own OpenMP runtime. Loading DINOv2 after the shade
+# index was built aborts the process ("OMP: Error #15") unless duplicates are allowed. Linux is unaffected.
+if sys.platform == "darwin":
+    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 __version__ = "0.1.0"
 
 _default = None
